@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  trading-dashboard:
+    build: .
+    container_name: trading-dashboard
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - APP_MODE=paper

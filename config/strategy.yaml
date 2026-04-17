@@ -1,0 +1,121 @@
+system:
+  app_name: bsc-fourmeme-mvp
+  mode: paper
+  chain: bsc
+  environment: dev
+  live_enabled: false
+  log_level: INFO
+
+scheduler:
+  signal_scan_seconds: 3
+  candidate_process_seconds: 2
+  order_process_seconds: 2
+  position_check_seconds: 5
+  status_report_seconds: 60
+  daily_report_seconds: 86400
+
+database:
+  url: sqlite+aiosqlite:///data/trading.db
+
+notifier:
+  console_enabled: true
+  file_enabled: true
+  telegram_enabled: false
+  telegram_bot_token_env: TELEGRAM_BOT_TOKEN
+  telegram_chat_id_env: TELEGRAM_CHAT_ID
+  log_path: data/logs/system.log
+
+execution:
+  quote_token: USDT
+  simulated_slippage_bps: 150
+  order_timeout_seconds: 30
+  retry_seconds: 2
+  max_retries: 3
+  buy:
+    amount_usd: 25
+
+integration_6551:
+  enabled: false
+  api_base_url: https://ai.6551.io
+  token_env: TWITTER_TOKEN
+  max_rows: 20
+  default_keywords: []
+  default_watch_accounts: []
+  request_timeout_seconds: 15
+  use_websocket: false
+
+candidate_pool:
+  min_signal_score: 0.1
+  max_candidates_per_cycle: 20
+
+listeners:
+  fourmemenewpairs:
+    enabled: true
+    endpoint: ""
+    endpoints: []
+    rpc_url: https://bsc-dataseed.binance.org/
+    rpc_urls:
+      - https://bsc-dataseed1.binance.org/
+      - https://bsc-dataseed2.binance.org/
+      - https://bsc-dataseed3.binance.org/
+      - https://bsc-dataseed4.binance.org/
+    contract_address: "0x5c952063c7fc8610ffdb798152d69f0b9550762b"
+    event_topic: "0x0a5575b3648bae2210cee56bf33254cc1ddfbc7bf637c0af2ac18b14fb1bae19"
+    start_block: 0
+    block_window: 500
+    polling_seconds: 3
+    mock_payload_path: data/mock_signals.json
+    timeout_seconds: 10
+    max_items: 50
+    rpc_error_cooldown_seconds: 30
+    use_mock_on_rpc_failure: true
+    browser_headers: {}
+    page_url: https://4.meme/
+  volume_spike:
+    enabled: false
+    endpoint: ""
+    endpoints: []
+    polling_seconds: 10
+    mock_payload_path: ""
+    timeout_seconds: 10
+    max_items: 50
+    browser_headers: {}
+    page_url: ""
+  fourmeme_migration:
+    enabled: false
+    endpoint: ""
+    endpoints: []
+    polling_seconds: 10
+    mock_payload_path: ""
+    timeout_seconds: 10
+    max_items: 50
+    browser_headers: {}
+    page_url: ""
+  twitter6551:
+    enabled: false
+    endpoint: ""
+    endpoints: []
+    polling_seconds: 15
+    mock_payload_path: ""
+    timeout_seconds: 15
+    max_items: 20
+    browser_headers: {}
+    page_url: ""
+
+strategies:
+  active: bscfourmememvp
+  bscfourmememvp:
+    min_liquidity: 1000
+    max_liquidity: 500000
+    maxbundlerrate: 0.15
+    maxbotrate: 0.15
+    minholdercount: 30
+    maxtop10rate: 0.5
+    buy:
+      amount_usd: 25
+    stoplosspct: 0.12
+    takeprofitpct: 0.35
+    trailingstoppct: 0.05
+    maxholdminutes: 1
+    signalreverseexit: true
+    liquidityexitthreshold: 800

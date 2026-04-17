@@ -1,0 +1,21 @@
+[
+  {
+    "signal_id": "sig-demo-1",
+    "source_type": "listener",
+    "source_detail": "mock-demo",
+    "chain": "bsc",
+    "ca": "0x1111111111111111111111111111111111111111",
+    "symbol": "DEMO",
+    "narrative": "meme",
+    "content": "mock pair discovered",
+    "signal_score": 0.92,
+    "risk_score": 0.15,
+    "liquidity": 12000,
+    "market_cap": 60000,
+    "holder_count": 58,
+    "top10_rate": 0.32,
+    "bundler_rate": 0.04,
+    "bot_rate": 0.03,
+    "discovered_at": "2026-04-17T00:00:00+00:00"
+  }
+]

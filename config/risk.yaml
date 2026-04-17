@@ -1,0 +1,9 @@
+risk:
+  max_position_usd: 100
+  max_concurrent_positions: 2
+  rebuy_cooldown_minutes: 60
+  blacklist_ca: []
+  blacklist_sources: []
+  max_retry_count: 3
+  consecutive_loss_pause_count: 3
+  pause_minutes: 60

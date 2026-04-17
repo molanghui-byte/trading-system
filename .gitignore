@@ -1,0 +1,11 @@
+.env
+.env.*
+config/.env
+data/*.db
+data/logs/
+data/app_main.lock
+data/dashboard_*.html
+__pycache__/
+*.pyc
+dashboard_test.html
+dashboard_test_v2.html

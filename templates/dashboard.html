@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>交易系统看板</title>
+  <meta http-equiv="refresh" content="3">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1e2430;
+      --text: #ecf0f6;
+      --muted: #9aa5b5;
+      --good: #32c48d;
+      --bad: #ff6b6b;
+      --warn: #ffb454;
+      --line: #2b3240;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    h1 { margin: 0 0 12px; }
+    .sub { color: var(--muted); margin-bottom: 18px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .card { padding: 14px; }
+    .card .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .card .value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .report {
+      margin-bottom: 18px;
+      padding: 14px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 16px;
+    }
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+    .panel { overflow: hidden; }
+    .panel-body { padding-bottom: 6px; }
+    .panel header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+      font-weight: 600;
+    }
+    .pager {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 14px 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pager a {
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px 8px;
+      background: var(--panel-2);
+    }
+    .pager span.disabled {
+      opacity: 0.4;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 500; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      font-size: 12px;
+      color: #d9e2ef;
+    }
+    .good { color: var(--good); }
+    .bad { color: var(--bad); }
+    .warn { color: var(--warn); }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>交易系统看板</h1>
+  <div class="sub">本地只读看板，每 3 秒自动刷新</div>
+
+  <section class="grid">
+    <div class="card"><div class="label">信号数</div><div class="value">{{ counts.signals }}</div></div>
+    <div class="card"><div class="label">候选数</div><div class="value">{{ counts.candidates }}</div></div>
+    <div class="card"><div class="label">订单数</div><div class="value">{{ counts.orders }}</div></div>
+    <div class="card"><div class="label">持仓数</div><div class="value">{{ counts.positions }}</div></div>
+    <div class="card"><div class="label">交易数</div><div class="value">{{ counts.trades }}</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <div class="label">运行模式</div>
+      <div class="value" style="font-size:22px">{{ wallet_summary.mode }}</div>
+      <div class="sub" style="margin:8px 0 0">链：{{ wallet_summary.chain }}</div>
+    </div>
+    <div class="card">
+      <div class="label">钱包总余额估算</div>
+      <div class="value">{{ "%.2f"|format(wallet_summary.total_equity) }}</div>
+      <div class="sub" style="margin:8px 0 0">可用现金：{{ "%.2f"|format(wallet_summary.available_cash) }} USD</div>
+    </div>
+    <div class="card">
+      <div class="label">持仓市值</div>
+      <div class="value">{{ "%.2f"|format(wallet_summary.open_position_value) }}</div>
+      <div class="sub" style="margin:8px 0 0">已启用钱包：{{ wallet_summary.enabled_wallet_count }}</div>
+    </div>
+    <div class="card">
+      <div class="label">已实现盈亏</div>
+      <div class="value {{ 'good' if wallet_summary.realized_pnl >= 0 else 'bad' }}">{{ "%.2f"|format(wallet_summary.realized_pnl) }}</div>
+      <div class="sub" style="margin:8px 0 0">未实现盈亏：{{ "%.2f"|format(wallet_summary.unrealized_pnl) }} USD</div>
+    </div>
+  </section>
+
+  <section class="panel report">
+    <header>钱包概览</header>
+    <table>
+      <tr>
+        <th>钱包名称</th><th>地址</th><th>状态</th><th>模拟初始资金</th>
+      </tr>
+      {% for wallet in wallet_summary.enabled_wallets %}
+      <tr>
+        <td>{{ wallet.name }}</td>
+        <td>{{ wallet.address }}</td>
+        <td>已启用</td>
+        <td>{{ "%.2f"|format(wallet.paper_balance_usd) }} USD</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <div class="sub" style="margin:12px 0 0">最近资金快照：{{ wallet_summary.updated_at or '暂无' }}</div>
+  </section>
+
+  <section class="panel report">
+    <header>最新日报</header>
+    <table>
+      <tr>
+        <th>日期</th><th>总盈亏</th><th>总交易数</th><th>胜率</th><th>最佳来源</th><th>最差来源</th>
+      </tr>
+      {% if latest_daily_report %}
+      <tr>
+        <td>{{ latest_daily_report.report_date }}</td>
+        <td class="{{ 'good' if latest_daily_report.total_pnl_usd >= 0 else 'bad' }}">{{ '%.4f'|format(latest_daily_report.total_pnl_usd) }}</td>
+        <td>{{ latest_daily_report.total_trades }}</td>
+        <td>{{ '%.2f%%'|format(latest_daily_report.win_rate * 100) }}</td>
+        <td>{{ zh_source(latest_daily_report.best_source) }}</td>
+        <td>{{ zh_source(latest_daily_report.worst_source) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">暂无日报数据</td></tr>
+      {% endif %}
+    </table>
+  </section>
+
+  <section class="panel report">
+    <header>BSC 监听器状态</header>
+    <table>
+      <tr>
+        <th>监听器</th><th>最近轮询</th><th>最近条数</th><th>来源模式</th><th>RPC / 接口</th><th>失败次数</th><th>冷却到</th><th>最近错误</th>
+      </tr>
+      {% for row in listener_states %}
+      <tr>
+        <td>{{ zh_source(row.name) }}</td>
+        <td>{{ row.last_polled_at or '—' }}</td>
+        <td>{{ row.last_item_count }}</td>
+        <td>{{ zh_listener_mode(row.last_source_mode) }}{% if row.last_mock_used %} / 已回退 mock{% endif %}</td>
+        <td>{{ row.last_rpc_url or row.last_endpoint or '—' }}</td>
+        <td>{{ row.rpc_failure_count }}</td>
+        <td>{{ row.rpc_cooldown_until or '—' }}</td>
+        <td>{{ row.last_error or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+
+  <div class="layout">
+    <div class="stack">
+      <section class="panel">
+        <header>信号</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>ID</th><th>信号 ID</th><th>来源</th><th>合约地址</th><th>状态</th></tr>
+            {% for row in signals %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.signal_id }}</td>
+              <td>{{ zh_source(row.source) }}</td>
+              <td>{{ row.ca }}</td>
+              <td>{{ zh_status(row.processing_status) }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if signal_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page - 1, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ signal_page }} / {{ signal_total_pages }} 页</span>
+            {% if signal_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page + 1, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header>持仓</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>ID</th><th>持仓 ID</th><th>状态</th><th>当前价格</th><th>退出原因</th></tr>
+            {% for row in positions %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.position_id }}</td>
+              <td>{{ zh_status(row.status) }}</td>
+              <td>{{ '%.8f'|format(row.current_price) }}</td>
+              <td>{{ zh_reason(row.exit_reason) }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if position_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page - 1, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ position_page }} / {{ position_total_pages }} 页</span>
+            {% if position_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page + 1, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header>订单</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>ID</th><th>订单 ID</th><th>方向</th><th>状态</th><th>交易哈希</th></tr>
+            {% for row in orders %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.order_id }}</td>
+              <td>{{ zh_status(row.side) }}</td>
+              <td>{{ zh_status(row.status) }}</td>
+              <td>{{ row.tx_hash or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if order_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page - 1, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ order_page }} / {{ order_total_pages }} 页</span>
+            {% if order_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page + 1, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header>交易复盘</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>ID</th><th>交易 ID</th><th>状态</th><th>盈亏 USD</th><th>退出原因</th></tr>
+            {% for row in trades %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.trade_id }}</td>
+              <td>{{ zh_status(row.trade_status) }}</td>
+              <td class="{{ 'good' if row.pnl_usd >= 0 else 'bad' }}">{{ '%.4f'|format(row.pnl_usd) }}</td>
+              <td>{{ zh_reason(row.why_exit) }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if trade_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page - 1, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ trade_page }} / {{ trade_total_pages }} 页</span>
+            {% if trade_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page + 1, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header>候选池</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>ID</th><th>候选 ID</th><th>合约地址</th><th>状态</th><th>原因</th></tr>
+            {% for row in candidates %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.candidate_id }}</td>
+              <td>{{ row.ca }}</td>
+              <td>{{ zh_status(row.status) }}</td>
+              <td>{{ zh_reason(row.reject_reason) }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if candidate_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page - 1, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ candidate_page }} / {{ candidate_total_pages }} 页</span>
+            {% if candidate_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page + 1, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="panel">
+        <header>运行状态</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>键</th><th>状态内容</th></tr>
+            {% for row in runtime_state %}
+            <tr>
+              <td>{{ zh_runtime_key(row.state_key) }}</td>
+              <td><pre>{{ pretty_json(row.state_json) }}</pre></td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if runtime_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page - 1, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ runtime_page }} / {{ runtime_total_pages }} 页</span>
+            {% if runtime_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page + 1, system_log_page=system_log_page, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header>系统日志</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>事件</th><th>级别</th><th>消息</th><th>详情</th></tr>
+            {% for row in system_logs %}
+            <tr>
+              <td>{{ row.event }}</td>
+              <td class="{{ 'bad' if row.level == 'ERROR' else 'warn' if row.level == 'WARN' else '' }}">{{ zh_status('ERROR_LEVEL' if row.level == 'ERROR' else row.level) }}</td>
+              <td>{{ row.message }}</td>
+              <td><pre>{{ pretty_json(row.detail) }}</pre></td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if system_log_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page - 1, strategy_log_page=strategy_log_page) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ system_log_page }} / {{ system_log_total_pages }} 页</span>
+            {% if system_log_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page + 1, strategy_log_page=strategy_log_page) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header>策略日志</header>
+        <div class="panel-body">
+          <table>
+            <tr><th>策略</th><th>事件</th><th>消息</th><th>快照</th></tr>
+            {% for row in strategy_logs %}
+            <tr>
+              <td>{{ row.strategy_name }}</td>
+              <td>{{ row.event }}</td>
+              <td>{{ row.message }}</td>
+              <td><pre>{{ pretty_json(row.snapshot) }}</pre></td>
+            </tr>
+            {% endfor %}
+          </table>
+          <div class="pager">
+            {% if strategy_log_has_prev %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page - 1) }}">上一页</a>
+            {% else %}
+            <span class="disabled">上一页</span>
+            {% endif %}
+            <span>第 {{ strategy_log_page }} / {{ strategy_log_total_pages }} 页</span>
+            {% if strategy_log_has_next %}
+            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page, trade_page=trade_page, candidate_page=candidate_page, runtime_page=runtime_page, system_log_page=system_log_page, strategy_log_page=strategy_log_page + 1) }}">下一页</a>
+            {% else %}
+            <span class="disabled">下一页</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

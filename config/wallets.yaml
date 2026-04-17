@@ -1,0 +1,6 @@
+wallets:
+  - name: primary
+    address: "0xpaperwallet00000000000000000000000000000001"
+    private_key_env: PAPER_WALLET_PRIVATE_KEY
+    enabled: true
+    paper_balance_usd: 1000
