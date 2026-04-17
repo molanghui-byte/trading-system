@@ -277,12 +277,12 @@
         <header>当前持仓</header>
         <div class="panel-body">
           <table>
-            <tr><th style="width: 56px;">ID</th><th>持仓 ID</th><th style="width: 72px;">状态</th><th style="width: 110px;">当前价格</th><th style="width: 110px;">退出原因</th></tr>
+            <tr><th style="width: 56px;">ID</th><th>CA</th><th style="width: 110px;">盈亏</th><th style="width: 110px;">当前价格</th><th style="width: 110px;">退出原因</th></tr>
             {% for row in positions %}
             <tr>
               <td>{{ row.id }}</td>
-              <td>{{ row.position_id }}</td>
-              <td>{{ zh_status(row.status) }}</td>
+              <td>{{ row.ca }}</td>
+              <td class="{{ 'good' if row.unrealized_pnl_usd >= 0 else 'bad' }}">{{ "%.2f"|format(row.unrealized_pnl_usd) }}</td>
               <td>{{ "%.8f"|format(row.current_price) }}</td>
               <td>{{ zh_reason(row.exit_reason) }}</td>
             </tr>
