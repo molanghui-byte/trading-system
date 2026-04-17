@@ -96,7 +96,10 @@ class LaunchOpportunityScanner:
         seed_info = await self.client.get_user_info(self.seed_username)
         if seed_info:
             accounts.append(seed_info)
-        watch_list = await self.client.get_watch_list()
+        try:
+            watch_list = await self.client.get_watch_list()
+        except Exception:
+            watch_list = []
         for row in watch_list:
             username = str(row.get("twAccount") or row.get("username") or "").strip()
             if not username:
@@ -112,12 +115,35 @@ class LaunchOpportunityScanner:
                     "lastActiveAt": row.get("lastActiveAt") or row.get("updatedAt") or "",
                 }
             )
+        if len(accounts) <= 1:
+            accounts.extend(await self._discover_from_seed_tweets())
         unique: dict[str, dict[str, Any]] = {}
         for item in accounts:
             username = str(item.get("username") or item.get("screen_name") or "").strip().lower()
             if username and username not in unique:
                 unique[username] = item
         return list(unique.values())[: self.max_watch_accounts]
+
+    async def _discover_from_seed_tweets(self) -> list[dict[str, Any]]:
+        rows = await self.client.get_user_tweets(self.seed_username, max_results=20, product="Latest")
+        discovered: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            text = str(row.get("text") or row.get("content") or "")
+            verified = bool(row.get("userVerified"))
+            for mention in self._extract_mentions(text):
+                if mention.lower() == self.seed_username.lower():
+                    continue
+                discovered.setdefault(
+                    mention.lower(),
+                    {
+                        "username": mention,
+                        "screen_name": mention,
+                        "verified": verified,
+                        "createdAt": row.get("createdAt") or "",
+                        "lastActiveAt": row.get("createdAt") or "",
+                    },
+                )
+        return list(discovered.values())
 
     def _is_stale(self, account: dict[str, Any]) -> bool:
         raw = (
@@ -167,6 +193,10 @@ class LaunchOpportunityScanner:
         if len(matches) == 1:
             return (matches[0], "未知")
         return (matches[0], matches[1])
+
+    @staticmethod
+    def _extract_mentions(text: str) -> list[str]:
+        return [match.group(1) for match in re.finditer(r"@([A-Za-z0-9_]{1,15})", text)]
 
     @staticmethod
     def _parse_datetime(raw: str) -> datetime | None:

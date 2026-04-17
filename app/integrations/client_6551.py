@@ -12,7 +12,7 @@ class Client6551:
         self.base_url = self.config.api_base_url.rstrip("/")
 
     def is_enabled(self) -> bool:
-        return self.config.enabled and bool(self._token())
+        return bool(self._token())
 
     async def search_twitter(
         self,

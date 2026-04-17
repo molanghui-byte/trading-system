@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -22,6 +23,15 @@ class DailyDog:
 class DailyDogScanner:
     def __init__(self) -> None:
         self.cli = shutil.which("gmgn-cli")
+        if not self.cli:
+            for candidate in (
+                r"C:\Users\Administrator\AppData\Roaming\npm\gmgn-cli.cmd",
+                r"C:\Users\Administrator\AppData\Roaming\npm\gmgn-cli",
+            ):
+                if shutil.which(candidate) or os.path.exists(candidate):
+                    self.cli = candidate
+                    break
+        self.node_dir = r"C:\Program Files\nodejs"
         self.chains = ("bsc", "sol")
 
     def scan(self) -> list[DailyDog]:
@@ -70,12 +80,15 @@ class DailyDogScanner:
             "--raw",
         ]
         try:
+            env = os.environ.copy()
+            env["PATH"] = f"{self.node_dir};{env.get('PATH', '')}"
             proc = subprocess.run(
                 command,
                 capture_output=True,
                 text=True,
                 timeout=90,
                 check=True,
+                env=env,
             )
         except Exception:
             return []
