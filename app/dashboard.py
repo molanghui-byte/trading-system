@@ -12,6 +12,8 @@ from sqlalchemy import desc, func, select
 
 from app.config import get_config
 from app.db import get_session, init_db
+from app.daily_dogs import DailyDogScanner
+from app.launch_opportunities import LaunchOpportunityScanner
 from app.models import Candidate, DailyReport, Order, Position, RuntimeState, Signal, StrategyLog, SystemLog, Trade
 
 
@@ -64,6 +66,9 @@ async def index(
     page_size = 5
     config = get_config()
     enabled_wallets = [wallet for wallet in config.wallets if wallet.enabled]
+    launch_scanner = LaunchOpportunityScanner(config)
+    launch_opportunities = await launch_scanner.scan()
+    daily_dogs = DailyDogScanner().scan()
 
     async with get_session() as session:
         active_position_filter = Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
@@ -153,6 +158,8 @@ async def index(
             "signals": signals,
             "positions": positions,
             "orders": orders,
+            "launch_opportunities": launch_opportunities,
+            "daily_dogs": daily_dogs,
             "trades": trades,
             "candidates": candidates,
             "runtime_state": runtime_state,

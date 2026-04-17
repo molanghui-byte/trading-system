@@ -392,34 +392,63 @@
         </div>
       </section>
 
-      <section class="panel full-span">
-        <header>订单流水</header>
+      <section class="panel">
+        <header>每日百倍归零狗</header>
         <div class="panel-body">
           <table>
-            <tr><th style="width: 56px;">ID</th><th>订单 ID</th><th style="width: 72px;">方向</th><th style="width: 72px;">状态</th><th>交易哈希</th></tr>
-            {% for row in orders %}
-            <tr>
-              <td>{{ row.id }}</td>
-              <td>{{ row.order_id }}</td>
-              <td>{{ zh_status(row.side) }}</td>
-              <td>{{ zh_status(row.status) }}</td>
-              <td>{{ row.tx_hash or '—' }}</td>
-            </tr>
-            {% endfor %}
+            <tr><th style="width: 72px;">链</th><th>CA</th><th style="width: 150px;">ATH / 当前市值</th><th style="width: 120px;">标签</th><th>说明</th></tr>
+            {% if daily_dogs %}
+              {% for row in daily_dogs %}
+              <tr>
+                <td>{{ row.chain }}</td>
+                <td>{{ row.ca }}</td>
+                <td>
+                  <div>{{ "%.0f"|format(row.ath_market_cap) }}</div>
+                  <div class="muted">{{ "%.0f"|format(row.current_market_cap) }}</div>
+                </td>
+                <td>{{ row.tags }}</td>
+                <td>
+                  <div>{{ row.summary }}</div>
+                  {% if row.kol_count %}
+                  <div class="muted">KOL 买入人数：{{ row.kol_count }}</div>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5">暂无符合条件的百倍归零狗</td></tr>
+            {% endif %}
           </table>
-          <div class="pager">
-            {% if order_has_prev %}
-            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page - 1, trade_page=trade_page, candidate_page=candidate_page) }}">上一页</a>
+        </div>
+      </section>
+
+      <section class="panel full-span">
+        <header>打新机会</header>
+        <div class="panel-body">
+          <table>
+            <tr><th style="width: 160px;">项目方推特</th><th>机会摘要</th><th style="width: 170px;">开始时间</th><th style="width: 170px;">结束时间</th><th style="width: 120px;">来源</th></tr>
+            {% if launch_opportunities %}
+              {% for row in launch_opportunities %}
+              <tr>
+                <td>
+                  <div>{{ row.project_twitter }}</div>
+                  <div class="muted">{{ row.display_name }}</div>
+                </td>
+                <td>
+                  <div>{{ row.summary }}</div>
+                  <div class="muted"><a href="{{ row.tweet_url }}" target="_blank" rel="noopener noreferrer" style="color: inherit;">查看原推文</a></div>
+                </td>
+                <td>{{ row.start_time or '未知' }}</td>
+                <td>{{ row.end_time or '未知' }}</td>
+                <td>{{ row.source_account }}</td>
+              </tr>
+              {% endfor %}
             {% else %}
-            <span class="disabled">上一页</span>
+              <tr>
+                <td colspan="5">暂无新的打新机会</td>
+              </tr>
             {% endif %}
-            <span>第 {{ order_page }} / {{ order_total_pages }} 页</span>
-            {% if order_has_next %}
-            <a href="/?{{ build_query(signal_page=signal_page, position_page=position_page, order_page=order_page + 1, trade_page=trade_page, candidate_page=candidate_page) }}">下一页</a>
-            {% else %}
-            <span class="disabled">下一页</span>
-            {% endif %}
-          </div>
+          </table>
         </div>
       </section>
     </section>

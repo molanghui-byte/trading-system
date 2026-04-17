@@ -58,6 +58,16 @@ class Client6551:
         response = await self._post("/open/twitter_user_tweets", payload)
         return self._extract_rows(response)
 
+    async def get_user_info(self, username: str) -> dict[str, Any]:
+        response = await self._post("/open/twitter_user_info", {"username": username})
+        if isinstance(response, dict):
+            for key in ("data", "result", "user"):
+                value = response.get(key)
+                if isinstance(value, dict):
+                    return value
+            return response
+        return {}
+
     async def get_watch_list(self) -> list[dict[str, Any]]:
         response = await self._post("/open/twitter_watch", {})
         return self._extract_rows(response)
