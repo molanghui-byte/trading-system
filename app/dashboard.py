@@ -66,11 +66,12 @@ async def index(
     enabled_wallets = [wallet for wallet in config.wallets if wallet.enabled]
 
     async with get_session() as session:
+        active_position_filter = Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
         counts = {
             "signals": await session.scalar(select(func.count()).select_from(Signal)) or 0,
             "candidates": await session.scalar(select(func.count()).select_from(Candidate)) or 0,
             "orders": await session.scalar(select(func.count()).select_from(Order)) or 0,
-            "positions": await session.scalar(select(func.count()).select_from(Position)) or 0,
+            "positions": await session.scalar(select(func.count()).select_from(Position).where(active_position_filter)) or 0,
             "trades": await session.scalar(select(func.count()).select_from(Trade)) or 0,
         }
         totals = {
@@ -90,7 +91,7 @@ async def index(
             await session.execute(select(DailyReport).order_by(desc(DailyReport.report_date)).limit(1))
         ).scalar_one_or_none()
         signals = await _paged(session, Signal, Signal.id, signal_page, page_size)
-        positions = await _paged(session, Position, Position.id, position_page, page_size)
+        positions = await _paged_positions(session, position_page, page_size)
         orders = await _paged(session, Order, Order.id, order_page, page_size)
         trades = await _paged(session, Trade, Trade.id, trade_page, page_size)
         candidates = await _paged(session, Candidate, Candidate.id, candidate_page, page_size)
@@ -111,7 +112,7 @@ async def index(
         unrealized_pnl = (
             await session.scalar(
                 select(func.coalesce(func.sum(Position.unrealized_pnl_usd), 0.0)).where(
-                    Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
+                    active_position_filter
                 )
             )
             or 0.0
@@ -119,7 +120,7 @@ async def index(
         open_position_value = (
             await session.scalar(
                 select(func.coalesce(func.sum(Position.current_value), 0.0)).where(
-                    Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
+                    active_position_filter
                 )
             )
             or 0.0
@@ -214,6 +215,17 @@ async def _paged_runtime_state(session, page: int, page_size: int):
         select(RuntimeState)
         .where(~RuntimeState.state_key.like("listener:%"))
         .order_by(desc(RuntimeState.updated_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    return result.scalars().all()
+
+
+async def _paged_positions(session, page: int, page_size: int):
+    result = await session.execute(
+        select(Position)
+        .where(Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"]))
+        .order_by(desc(Position.id))
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
