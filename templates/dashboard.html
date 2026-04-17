@@ -49,10 +49,6 @@
       font-size: 28px;
       font-weight: 700;
     }
-    .report {
-      margin-bottom: 18px;
-      padding: 14px;
-    }
     .layout {
       display: grid;
       grid-template-columns: 1.35fr 1fr;
@@ -138,7 +134,7 @@
       <div class="sub" style="margin:8px 0 0">链：{{ wallet_summary.chain }}</div>
     </div>
     <div class="card">
-      <div class="label">钱包总余额估算</div>
+      <div class="label">总权益估算</div>
       <div class="value">{{ "%.2f"|format(wallet_summary.total_equity) }}</div>
       <div class="sub" style="margin:8px 0 0">可用现金：{{ "%.2f"|format(wallet_summary.available_cash) }} USD</div>
     </div>
@@ -152,66 +148,6 @@
       <div class="value {{ 'good' if wallet_summary.realized_pnl >= 0 else 'bad' }}">{{ "%.2f"|format(wallet_summary.realized_pnl) }}</div>
       <div class="sub" style="margin:8px 0 0">未实现盈亏：{{ "%.2f"|format(wallet_summary.unrealized_pnl) }} USD</div>
     </div>
-  </section>
-
-  <section class="panel report">
-    <header>钱包概览</header>
-    <table>
-      <tr>
-        <th>钱包名称</th><th>地址</th><th>状态</th><th>模拟初始资金</th>
-      </tr>
-      {% for wallet in wallet_summary.enabled_wallets %}
-      <tr>
-        <td>{{ wallet.name }}</td>
-        <td>{{ wallet.address }}</td>
-        <td>已启用</td>
-        <td>{{ "%.2f"|format(wallet.paper_balance_usd) }} USD</td>
-      </tr>
-      {% endfor %}
-    </table>
-    <div class="sub" style="margin:12px 0 0">最近资金快照：{{ wallet_summary.updated_at or '暂无' }}</div>
-  </section>
-
-  <section class="panel report">
-    <header>最新日报</header>
-    <table>
-      <tr>
-        <th>日期</th><th>总盈亏</th><th>总交易数</th><th>胜率</th><th>最佳来源</th><th>最差来源</th>
-      </tr>
-      {% if latest_daily_report %}
-      <tr>
-        <td>{{ latest_daily_report.report_date }}</td>
-        <td class="{{ 'good' if latest_daily_report.total_pnl_usd >= 0 else 'bad' }}">{{ '%.4f'|format(latest_daily_report.total_pnl_usd) }}</td>
-        <td>{{ latest_daily_report.total_trades }}</td>
-        <td>{{ '%.2f%%'|format(latest_daily_report.win_rate * 100) }}</td>
-        <td>{{ zh_source(latest_daily_report.best_source) }}</td>
-        <td>{{ zh_source(latest_daily_report.worst_source) }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="6">暂无日报数据</td></tr>
-      {% endif %}
-    </table>
-  </section>
-
-  <section class="panel report">
-    <header>BSC 监听器状态</header>
-    <table>
-      <tr>
-        <th>监听器</th><th>最近轮询</th><th>最近条数</th><th>来源模式</th><th>RPC / 接口</th><th>失败次数</th><th>冷却到</th><th>最近错误</th>
-      </tr>
-      {% for row in listener_states %}
-      <tr>
-        <td>{{ zh_source(row.name) }}</td>
-        <td>{{ row.last_polled_at or '—' }}</td>
-        <td>{{ row.last_item_count }}</td>
-        <td>{{ zh_listener_mode(row.last_source_mode) }}{% if row.last_mock_used %} / 已回退 mock{% endif %}</td>
-        <td>{{ row.last_rpc_url or row.last_endpoint or '—' }}</td>
-        <td>{{ row.rpc_failure_count }}</td>
-        <td>{{ row.rpc_cooldown_until or '—' }}</td>
-        <td>{{ row.last_error or '—' }}</td>
-      </tr>
-      {% endfor %}
-    </table>
   </section>
 
   <div class="layout">
@@ -257,7 +193,7 @@
               <td>{{ row.id }}</td>
               <td>{{ row.position_id }}</td>
               <td>{{ zh_status(row.status) }}</td>
-              <td>{{ '%.8f'|format(row.current_price) }}</td>
+              <td>{{ "%.8f"|format(row.current_price) }}</td>
               <td>{{ zh_reason(row.exit_reason) }}</td>
             </tr>
             {% endfor %}
@@ -319,7 +255,7 @@
               <td>{{ row.id }}</td>
               <td>{{ row.trade_id }}</td>
               <td>{{ zh_status(row.trade_status) }}</td>
-              <td class="{{ 'good' if row.pnl_usd >= 0 else 'bad' }}">{{ '%.4f'|format(row.pnl_usd) }}</td>
+              <td class="{{ 'good' if row.pnl_usd >= 0 else 'bad' }}">{{ "%.4f"|format(row.pnl_usd) }}</td>
               <td>{{ zh_reason(row.why_exit) }}</td>
             </tr>
             {% endfor %}
