@@ -25,6 +25,7 @@ class SystemConfig(BaseModel):
     app_name: str = "bsc-fourmeme-mvp"
     mode: str = "paper"
     chain: str = "bsc"
+    chains: list[str] = Field(default_factory=list)
     environment: str = "dev"
     live_enabled: bool = False
     log_level: str = "INFO"
@@ -33,6 +34,14 @@ class SystemConfig(BaseModel):
     def validate_live(self) -> "SystemConfig":
         if self.mode == "live" and not self.live_enabled:
             raise ValueError("live mode requires system.live_enabled=true")
+        chain = (self.chain or "bsc").lower()
+        self.chain = chain
+        normalized = [item.strip().lower() for item in self.chains if item and item.strip()]
+        if not normalized:
+            normalized = [chain]
+        elif chain not in normalized:
+            normalized.insert(0, chain)
+        self.chains = list(dict.fromkeys(normalized))
         return self
 
 
@@ -201,6 +210,15 @@ def _load_config_dict() -> dict[str, Any]:
     mode = os.getenv("APP_MODE")
     if mode:
         merged.setdefault("system", {})["mode"] = mode
+    chain = os.getenv("APP_CHAIN") or os.getenv("CHAIN_OVERRIDE")
+    if chain:
+        merged.setdefault("system", {})["chain"] = chain
+    chains = os.getenv("APP_CHAINS")
+    if chains:
+        merged.setdefault("system", {})["chains"] = [item.strip() for item in chains.split(",") if item.strip()]
+    app_name = os.getenv("APP_NAME")
+    if app_name:
+        merged.setdefault("system", {})["app_name"] = app_name
     live_enabled = os.getenv("LIVE_ENABLED")
     if live_enabled:
         merged.setdefault("system", {})["live_enabled"] = live_enabled.lower() == "true"

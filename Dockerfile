@@ -13,7 +13,8 @@ COPY config ./config
 COPY templates ./templates
 COPY data ./data
 COPY README.md .
+COPY start_multi_chain.py .
 
 EXPOSE 8050
 
-CMD ["sh", "-c", "uvicorn app.dashboard:app --host 0.0.0.0 --port ${PORT:-8050} --workers 1 --proxy-headers"]
+CMD ["python", "start_multi_chain.py"]

@@ -2,6 +2,9 @@ system:
   app_name: bsc-fourmeme-mvp
   mode: paper
   chain: bsc
+  chains:
+    - bsc
+    - sol
   environment: dev
   live_enabled: false
   log_level: INFO
@@ -99,6 +102,16 @@ listeners:
     mock_payload_path: ""
     timeout_seconds: 15
     max_items: 20
+    browser_headers: {}
+    page_url: ""
+  solnewpairs:
+    enabled: true
+    endpoint: ""
+    endpoints: []
+    polling_seconds: 5
+    mock_payload_path: data/mock_signals_sol.json
+    timeout_seconds: 10
+    max_items: 50
     browser_headers: {}
     page_url: ""
 

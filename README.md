@@ -1,6 +1,6 @@
-# BSC Fourmeme Trading System MVP
+# Multi-Chain Paper Trading Dashboard
 
-Event-driven MVP for a BSC Fourmeme trading loop:
+Event-driven paper trading MVP for multi-chain meme signal flow:
 
 `signal -> candidate -> strategy -> order -> position -> exit -> review`
 
@@ -9,7 +9,7 @@ Event-driven MVP for a BSC Fourmeme trading loop:
 - Async runtime with SQLite and SQLAlchemy ORM
 - YAML + environment config loading with live-mode hard gate
 - Strict state machine with logged transitions
-- Listener service with working `fourmemenewpairs` mock ingestion
+- Listener service with working `fourmemenewpairs` and `solnewpairs` ingestion
 - Candidate pool generation and signal linking
 - Single config-driven MVP strategy
 - Risk checks for blacklist, cooldown, concurrent positions, and loss pause
@@ -17,7 +17,7 @@ Event-driven MVP for a BSC Fourmeme trading loop:
 - Position management with stop loss, take profit, timeout, and trailing stop
 - Recovery bootstrap for pending orders and open positions
 - Daily report and trade review jobs
-- Single-instance lock for `app.main` to prevent duplicate writers against the same SQLite database
+- Chain-scoped worker locks so BSC and SOL paper workers can run side by side against the same SQLite database
 
 ## Run
 
@@ -36,6 +36,13 @@ pip install -r requirements.txt
 python -m app.main
 ```
 
+Run a specific chain worker:
+
+```bash
+APP_CHAIN=bsc python -m app.main_chain
+APP_CHAIN=sol python -m app.main_chain
+```
+
 ## Dashboard
 
 Local dashboard:
@@ -44,10 +51,10 @@ Local dashboard:
 python -m uvicorn app.dashboard:app --host 127.0.0.1 --port 8050
 ```
 
-Production-style bind:
+Production-style multi-process startup:
 
 ```bash
-python -m uvicorn app.dashboard:app --host 0.0.0.0 --port 8050 --workers 1 --proxy-headers
+python start_multi_chain.py
 ```
 
 Health check:
@@ -69,12 +76,12 @@ Deployment artifacts:
 
 - Default mode is `paper`
 - Live mode requires `APP_MODE=live` and `LIVE_ENABLED=true`
-- `data/mock_signals.json` is included so the first boot can walk through the paper pipeline
+- `data/mock_signals.json` and `data/mock_signals_sol.json` are included so the first boot can walk through both BSC and SOL paper pipelines
 - `fourmemenewpairs` now supports real HTTP polling via `listeners.fourmemenewpairs.endpoint` or `endpoints`; if the live source returns nothing, it falls back to the mock file
 - `fourmemenewpairs` also supports direct BSC RPC event polling via `rpc_url + contract_address + event_topic`, which is a more stable production path than scraping a frontend API
 - `twitter6551` can now be enabled as a read-only signal source backed by the 6551 Twitter/X API, using `integration_6551.token_env` for the bearer token
 - Listener polling metadata is persisted in `runtime_state` under keys like `listener:fourmemenewpairs`
-- `app.main` now writes a lock file at `data/app_main.lock`; if another main loop is already running, a second start will fail fast instead of racing on SQLite state
+- `app.main_chain` writes chain-specific lock files like `data/app_main_bsc.lock` and `data/app_main_sol.lock`
 
 ## 6551 Integration
 

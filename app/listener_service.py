@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.listeners.fourmeme_migration import FourMemeMigrationListener
 from app.listeners.fourmemenewpairs import FourMemeNewPairsListener
+from app.listeners.solnewpairs import SolanaNewPairsListener
 from app.listeners.twitter6551 import Twitter6551Listener
 from app.listeners.volume_spike import VolumeSpikeListener
 from app.models import RuntimeState, Signal, SystemLog
@@ -20,6 +21,7 @@ class ListenerService:
         self.state_machine = state_machine
         self.listeners = [
             FourMemeNewPairsListener(config),
+            SolanaNewPairsListener(config),
             Twitter6551Listener(config),
             VolumeSpikeListener(config),
             FourMemeMigrationListener(config),

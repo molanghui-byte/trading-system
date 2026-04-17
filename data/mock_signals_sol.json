@@ -1,0 +1,46 @@
+[
+  {
+    "signal_id": "sol-mock-bonk-001",
+    "source_type": "mock",
+    "source_detail": "solnewpairs:mock",
+    "chain": "sol",
+    "ca": "So11111111111111111111111111111111111111112",
+    "symbol": "BONK",
+    "narrative": "sol_meme",
+    "content": "solana mock pair bonk",
+    "signal_score": 0.72,
+    "risk_score": 0.2,
+    "liquidity": 18000,
+    "market_cap": 120000,
+    "holder_count": 220,
+    "top10_rate": 0.19,
+    "bundler_rate": 0.03,
+    "bot_rate": 0.04,
+    "discovered_at": "2026-04-18T00:00:00+00:00",
+    "raw_item": {
+      "__mock__": true
+    }
+  },
+  {
+    "signal_id": "sol-mock-wif-001",
+    "source_type": "mock",
+    "source_detail": "solnewpairs:mock",
+    "chain": "sol",
+    "ca": "EKpQGSJtjMFqKZx4YtF2i6V2vNhbbX6YsJhBKt3vnDnR",
+    "symbol": "WIF",
+    "narrative": "sol_meme",
+    "content": "solana mock pair wif",
+    "signal_score": 0.66,
+    "risk_score": 0.24,
+    "liquidity": 14500,
+    "market_cap": 90000,
+    "holder_count": 160,
+    "top10_rate": 0.22,
+    "bundler_rate": 0.02,
+    "bot_rate": 0.05,
+    "discovered_at": "2026-04-18T00:01:00+00:00",
+    "raw_item": {
+      "__mock__": true
+    }
+  }
+]

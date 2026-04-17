@@ -29,15 +29,20 @@ async def startup() -> None:
 async def healthz() -> JSONResponse:
     async with get_session() as session:
         signal_count = await session.scalar(select(func.count()).select_from(Signal)) or 0
+        distinct_chains = (
+            await session.execute(select(Signal.chain).distinct().order_by(Signal.chain.asc()))
+        ).scalars().all()
         latest_log = (
             await session.execute(select(SystemLog).order_by(desc(SystemLog.id)).limit(1))
         ).scalar_one_or_none()
+    config = get_config()
     return JSONResponse(
         {
             "status": "ok",
             "app": "trading-dashboard",
-            "mode": get_config().system.mode,
-            "chain": get_config().system.chain,
+            "mode": config.system.mode,
+            "chain": config.system.chain,
+            "chains": distinct_chains or config.system.chains,
             "signal_count": signal_count,
             "latest_system_event": latest_log.event if latest_log else "",
         }
@@ -90,14 +95,6 @@ async def index(
         runtime_state = await _paged(session, RuntimeState, RuntimeState.updated_at, runtime_page, page_size)
         system_logs = await _paged(session, SystemLog, SystemLog.id, system_log_page, page_size)
         strategy_logs = await _paged(session, StrategyLog, StrategyLog.id, strategy_log_page, page_size)
-        listener_state_rows = (
-            await session.execute(
-                select(RuntimeState)
-                .where(RuntimeState.state_key.like("listener:%"))
-                .order_by(RuntimeState.state_key.asc())
-            )
-        ).scalars().all()
-        listener_states = [_parse_runtime_state(row) for row in listener_state_rows]
         wallet_state_row = (
             await session.execute(select(RuntimeState).where(RuntimeState.state_key == "wallet_summary"))
         ).scalar_one_or_none()
@@ -131,7 +128,7 @@ async def index(
     available_cash = total_equity - open_position_value
     wallet_summary = {
         "mode": "模拟盘" if config.system.mode == "paper" else "实盘",
-        "chain": config.system.chain.upper(),
+        "chain": " / ".join(chain.upper() for chain in config.system.chains),
         "enabled_wallet_count": len(enabled_wallets),
         "enabled_wallets": enabled_wallets,
         "starting_balance": starting_balance,
@@ -150,7 +147,6 @@ async def index(
             "counts": counts,
             "latest_daily_report": latest_daily_report,
             "wallet_summary": wallet_summary,
-            "listener_states": listener_states,
             "signals": signals,
             "positions": positions,
             "orders": orders,
@@ -197,7 +193,6 @@ async def index(
             "zh_reason": _zh_reason,
             "zh_source": _zh_source,
             "zh_runtime_key": _zh_runtime_key,
-            "zh_listener_mode": _zh_listener_mode,
         },
     )
 
@@ -229,22 +224,6 @@ def _parse_state_json(raw: str) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
     except Exception:
         return {}
-
-
-def _parse_runtime_state(row: RuntimeState) -> dict[str, Any]:
-    payload = _parse_state_json(row.state_json)
-    return {
-        "name": row.state_key.split(":", 1)[1] if ":" in row.state_key else row.state_key,
-        "last_polled_at": payload.get("last_polled_at", ""),
-        "last_item_count": payload.get("last_item_count", 0),
-        "last_source_mode": payload.get("last_source_mode", ""),
-        "last_rpc_url": payload.get("last_rpc_url", ""),
-        "last_endpoint": payload.get("last_endpoint", ""),
-        "last_mock_used": payload.get("last_mock_used", False),
-        "last_error": payload.get("last_error", ""),
-        "rpc_failure_count": payload.get("rpc_failure_count", 0),
-        "rpc_cooldown_until": payload.get("rpc_cooldown_until", ""),
-    }
 
 
 def _build_query(**kwargs: int) -> str:
@@ -323,6 +302,9 @@ def _zh_reason(value: str) -> str:
         "rebuy_cooldown": "重复买入冷却中",
         "loss_pause": "连续亏损暂停",
         "buy_confirmed": "买入确认",
+        "missing_ca": "缺少合约地址",
+        "signal_score_too_low": "信号分过低",
+        "already_holding": "已有持仓",
     }
     return mapping.get(value, value or "—")
 
@@ -334,6 +316,7 @@ def _zh_source(value: str) -> str:
         "fourmeme_migration": "FourMeme 迁移",
         "twitter6551": "Twitter/6551",
         "volume_spike": "放量异动",
+        "solnewpairs": "Solana 新池",
     }
     return mapping.get(value, value or "—")
 
@@ -355,17 +338,5 @@ def _zh_runtime_key(value: str) -> str:
     if value == "last_processed_block":
         return "最近处理区块"
     if value == "wallet_summary":
-        return "钱包资金概览"
+        return "资金概览"
     return value
-
-
-def _zh_listener_mode(value: str) -> str:
-    mapping = {
-        "idle": "空闲",
-        "mock": "模拟数据",
-        "api": "接口",
-        "chain_event": "链上事件",
-        "error": "异常",
-        "listener": "监听器",
-    }
-    return mapping.get(value, value or "—")
