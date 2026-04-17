@@ -79,7 +79,9 @@ async def index(
             "orders": counts["orders"],
             "trades": counts["trades"],
             "candidates": counts["candidates"],
-            "runtime": await session.scalar(select(func.count()).select_from(RuntimeState)) or 0,
+            "runtime": await session.scalar(
+                select(func.count()).select_from(RuntimeState).where(~RuntimeState.state_key.like("listener:%"))
+            ) or 0,
             "system_logs": await session.scalar(select(func.count()).select_from(SystemLog)) or 0,
             "strategy_logs": await session.scalar(select(func.count()).select_from(StrategyLog)) or 0,
         }
@@ -92,7 +94,7 @@ async def index(
         orders = await _paged(session, Order, Order.id, order_page, page_size)
         trades = await _paged(session, Trade, Trade.id, trade_page, page_size)
         candidates = await _paged(session, Candidate, Candidate.id, candidate_page, page_size)
-        runtime_state = await _paged(session, RuntimeState, RuntimeState.updated_at, runtime_page, page_size)
+        runtime_state = await _paged_runtime_state(session, runtime_page, page_size)
         system_logs = await _paged(session, SystemLog, SystemLog.id, system_log_page, page_size)
         strategy_logs = await _paged(session, StrategyLog, StrategyLog.id, strategy_log_page, page_size)
         wallet_state_row = (
@@ -201,6 +203,17 @@ async def _paged(session, model, order_column, page: int, page_size: int):
     result = await session.execute(
         select(model)
         .order_by(desc(order_column))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    return result.scalars().all()
+
+
+async def _paged_runtime_state(session, page: int, page_size: int):
+    result = await session.execute(
+        select(RuntimeState)
+        .where(~RuntimeState.state_key.like("listener:%"))
+        .order_by(desc(RuntimeState.updated_at))
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
