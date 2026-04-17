@@ -277,14 +277,17 @@
         <header>当前持仓</header>
         <div class="panel-body">
           <table>
-            <tr><th style="width: 56px;">ID</th><th>CA</th><th style="width: 110px;">盈亏</th><th style="width: 110px;">当前价格</th><th style="width: 110px;">退出原因</th></tr>
+            <tr><th style="width: 56px;">ID</th><th>CA</th><th style="width: 140px;">盈亏</th><th style="width: 110px;">当前价格</th><th style="width: 100px;">状态</th></tr>
             {% for row in positions %}
             <tr>
               <td>{{ row.id }}</td>
               <td>{{ row.ca }}</td>
-              <td class="{{ 'good' if row.unrealized_pnl_usd >= 0 else 'bad' }}">{{ "%.2f"|format(row.unrealized_pnl_usd) }}</td>
+              <td class="{{ 'good' if row.unrealized_pnl_usd >= 0 else 'bad' }}">
+                {{ "%.2f"|format(row.unrealized_pnl_usd) }} USD
+                <div class="muted">{{ "%.2f"|format(row.unrealized_pnl_pct * 100) }}%</div>
+              </td>
               <td>{{ "%.8f"|format(row.current_price) }}</td>
-              <td>{{ zh_reason(row.exit_reason) }}</td>
+              <td>{{ zh_status(row.status) }}</td>
             </tr>
             {% endfor %}
           </table>
@@ -308,14 +311,28 @@
         <header>交易复盘</header>
         <div class="panel-body">
           <table>
-            <tr><th style="width: 56px;">ID</th><th>交易 ID</th><th style="width: 72px;">状态</th><th style="width: 110px;">盈亏 USD</th><th style="width: 110px;">退出原因</th></tr>
+            <tr><th style="width: 56px;">ID</th><th>CA</th><th style="width: 80px;">状态</th><th style="width: 120px;">盈亏</th><th>复盘说明</th></tr>
             {% for row in trades %}
             <tr>
               <td>{{ row.id }}</td>
-              <td>{{ row.trade_id }}</td>
+              <td>{{ row.ca }}</td>
               <td>{{ zh_status(row.trade_status) }}</td>
-              <td class="{{ 'good' if row.pnl_usd >= 0 else 'bad' }}">{{ "%.4f"|format(row.pnl_usd) }}</td>
-              <td>{{ zh_reason(row.why_exit) }}</td>
+              <td class="{{ 'good' if row.pnl_usd >= 0 else 'bad' }}">
+                {{ "%.4f"|format(row.pnl_usd) }} USD
+                <div class="muted">{{ "%.2f"|format(row.pnl_pct * 100) }}%</div>
+              </td>
+              <td>
+                <div>{{ zh_reason(row.why_exit) }}</div>
+                {% if row.exit_trigger_type %}
+                <div class="muted">触发：{{ row.exit_trigger_type }}</div>
+                {% endif %}
+                {% if row.actual_result %}
+                <div class="muted">结果：{{ row.actual_result }}</div>
+                {% endif %}
+                {% if row.lesson_tag %}
+                <div class="muted">复盘标签：{{ row.lesson_tag }}</div>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </table>
@@ -339,14 +356,23 @@
         <header>候选池</header>
         <div class="panel-body">
           <table>
-            <tr><th style="width: 56px;">ID</th><th>候选 ID</th><th>合约地址</th><th style="width: 72px;">状态</th><th style="width: 110px;">原因</th></tr>
+            <tr><th style="width: 56px;">ID</th><th>CA</th><th style="width: 120px;">当前市值</th><th style="width: 80px;">状态</th><th>候选原因</th></tr>
             {% for row in candidates %}
             <tr>
               <td>{{ row.id }}</td>
-              <td>{{ row.candidate_id }}</td>
               <td>{{ row.ca }}</td>
+              <td>{{ "%.2f"|format(row.market_cap) }}</td>
               <td>{{ zh_status(row.status) }}</td>
-              <td>{{ zh_reason(row.reject_reason) }}</td>
+              <td>
+                <div>{{ zh_reason(row.reject_reason) if row.reject_reason else '信号通过初筛，等待后续动作' }}</div>
+                <div class="muted">
+                  流动性 {{ "%.2f"|format(row.liquidity) }} /
+                  持有人 {{ row.holder_count }} /
+                  前十占比 {{ "%.2f"|format(row.top10_rate * 100) }}% /
+                  Bundler {{ "%.2f"|format(row.bundler_rate * 100) }}% /
+                  Bot {{ "%.2f"|format(row.bot_rate * 100) }}%
+                </div>
+              </td>
             </tr>
             {% endfor %}
           </table>
