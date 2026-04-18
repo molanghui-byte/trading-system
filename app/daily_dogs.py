@@ -5,7 +5,6 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any
 
 
@@ -22,29 +21,20 @@ class DailyDog:
 
 class DailyDogScanner:
     def __init__(self) -> None:
-        self.cli = shutil.which("gmgn-cli")
-        if not self.cli:
-            for candidate in (
-                r"C:\Users\Administrator\AppData\Roaming\npm\gmgn-cli.cmd",
-                r"C:\Users\Administrator\AppData\Roaming\npm\gmgn-cli",
-            ):
-                if shutil.which(candidate) or os.path.exists(candidate):
-                    self.cli = candidate
-                    break
-        self.node_dir = r"C:\Program Files\nodejs"
+        self.cli = self._resolve_cli()
         self.chains = ("bsc", "sol")
 
     def scan(self) -> list[DailyDog]:
         if not self.cli:
             return [
                 DailyDog(
-                    chain="system",
+                    chain="SYSTEM",
                     ca="未检测到 gmgn-cli",
                     ath_market_cap=0.0,
                     current_market_cap=0.0,
                     tags="待安装 GMGN",
                     kol_count=0,
-                    summary="已接入百倍归零狗筛选逻辑，但当前机器未安装 gmgn-cli，无法完成真实链上排查。",
+                    summary="已接入百倍归零狗筛选逻辑，但当前运行环境未安装 gmgn-cli，暂时无法完成真实链上排查。",
                 )
             ]
 
@@ -61,6 +51,19 @@ class DailyDogScanner:
         for item in dogs:
             dedup[f"{item.chain}:{item.ca}"] = item
         return list(dedup.values())[:20]
+
+    def _resolve_cli(self) -> str | None:
+        for candidate in (
+            shutil.which("gmgn-cli"),
+            shutil.which("gmgn-cli.cmd"),
+            "/usr/local/bin/gmgn-cli",
+            "/usr/bin/gmgn-cli",
+            r"C:\Users\Administrator\AppData\Roaming\npm\gmgn-cli.cmd",
+            r"C:\Users\Administrator\AppData\Roaming\npm\gmgn-cli",
+        ):
+            if candidate and os.path.exists(candidate):
+                return candidate
+        return None
 
     def _fetch_trending(self, chain: str) -> list[dict[str, Any]]:
         command = [
@@ -80,18 +83,17 @@ class DailyDogScanner:
             "--raw",
         ]
         try:
-            env = os.environ.copy()
-            env["PATH"] = f"{self.node_dir};{env.get('PATH', '')}"
             proc = subprocess.run(
                 command,
                 capture_output=True,
                 text=True,
                 timeout=90,
                 check=True,
-                env=env,
+                env=os.environ.copy(),
             )
         except Exception:
             return []
+
         payload = self._load_json(proc.stdout)
         if isinstance(payload, list):
             return [item for item in payload if isinstance(item, dict)]
@@ -139,7 +141,7 @@ class DailyDogScanner:
 
         summary = (
             f"ATH {ath_market_cap:,.0f}，现市值 {current_market_cap:,.0f}，"
-            f"KOL {kol_count}，Smart {smart_count}，适合持续跟踪是否有二次叙事。"
+            f"KOL {kol_count}，Smart {smart_count}，适合继续跟踪是否出现二次叙事。"
         )
         return DailyDog(
             chain=chain.upper(),
