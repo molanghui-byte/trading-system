@@ -46,6 +46,8 @@ integration_6551:
   default_watch_accounts: []
   request_timeout_seconds: 15
   use_websocket: false
+  # 热点狙击关注名单建议通过 Railway 变量 HOTSPOT_SNIPER_ACCOUNTS 传入，格式:
+  # account_a,account_b,account_c
 
 candidate_pool:
   min_signal_score: 0.1

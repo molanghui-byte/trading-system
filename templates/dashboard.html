@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>交易系统看板</title>
+  {% if hotspot_auto_refresh_seconds %}
+  <meta http-equiv="refresh" content="{{ hotspot_auto_refresh_seconds }}">
+  {% endif %}
   <style>
     :root {
       color-scheme: dark;
@@ -242,6 +245,55 @@
     </section>
 
     <section class="board">
+      <section class="panel full-span">
+        <header>热点狙击{% if hotspot_alert_count %} <span class="warn">+{{ hotspot_alert_count }} 新告警</span>{% endif %}</header>
+        <div class="panel-body">
+          <table>
+            <tr><th style="width: 150px;">狙击人物</th><th>狙击情况</th><th style="width: 120px;">买入市值</th><th style="width: 120px;">盈亏</th><th style="width: 110px;">当前状态</th></tr>
+            {% if hotspot_snipes %}
+              {% for row in hotspot_snipes %}
+              <tr>
+                <td>
+                  <div>{{ row.sniper_person }}</div>
+                  {% if row.symbol %}
+                  <div class="muted">${{ row.symbol }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <div>{{ row.situation }}</div>
+                  {% if row.ca %}
+                  <div class="muted">CA: {{ row.ca }}</div>
+                  {% endif %}
+                  {% if row.tweet_url and row.tweet_url != '#' %}
+                  <div class="muted"><a href="{{ row.tweet_url }}" target="_blank" rel="noopener noreferrer" style="color: inherit;">查看原推</a></div>
+                  {% endif %}
+                </td>
+                <td>{{ row.buy_market_cap }}</td>
+                <td class="{{ 'good' if row.pnl_usd >= 0 else 'bad' }}">
+                  {{ "%.4f"|format(row.pnl_usd) }} USD
+                  <div class="muted">{{ "%.2f"|format(row.pnl_pct * 100) }}%</div>
+                </td>
+                <td>
+                  <div class="{{ 'warn' if row.is_new else '' }}">{{ row.status }}</div>
+                  {% if row.status == '观察中，持续扫描' %}
+                  <div class="muted">一旦识别到 CA 或 $TOKEN，立即转入模拟买入</div>
+                  {% endif %}
+                  {% if row.is_new %}
+                  <div class="muted">新命中</div>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5">暂无热点狙击记录</td></tr>
+            {% endif %}
+          </table>
+          <div class="pager">
+            <span>自动刷新：{{ hotspot_auto_refresh_seconds }} 秒</span>
+          </div>
+        </div>
+      </section>
+
       <section class="panel">
         <header>最新信号</header>
         <div class="panel-body">

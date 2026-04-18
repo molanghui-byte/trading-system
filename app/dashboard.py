@@ -13,6 +13,7 @@ from sqlalchemy import desc, func, select
 from app.config import get_config
 from app.db import get_session, init_db
 from app.daily_dogs import DailyDogScanner
+from app.hotspot_sniper import HotspotSniperScanner
 from app.launch_opportunities import LaunchOpportunityScanner
 from app.models import Candidate, DailyReport, Order, Position, RuntimeState, Signal, StrategyLog, SystemLog, Trade
 
@@ -66,11 +67,12 @@ async def index(
     page_size = 5
     config = get_config()
     enabled_wallets = [wallet for wallet in config.wallets if wallet.enabled]
-    launch_scanner = LaunchOpportunityScanner(config)
-    launch_opportunities = await launch_scanner.scan()
-    daily_dogs = DailyDogScanner().scan()
 
     async with get_session() as session:
+        launch_scanner = LaunchOpportunityScanner(config)
+        launch_opportunities = await launch_scanner.scan()
+        daily_dogs = DailyDogScanner().scan()
+        hotspot_result = await HotspotSniperScanner(config).scan(session)
         active_position_filter = Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
         counts = {
             "signals": await session.scalar(select(func.count()).select_from(Signal)) or 0,
@@ -160,6 +162,9 @@ async def index(
             "orders": orders,
             "launch_opportunities": launch_opportunities,
             "daily_dogs": daily_dogs,
+            "hotspot_snipes": hotspot_result.items,
+            "hotspot_alert_count": hotspot_result.alert_count,
+            "hotspot_auto_refresh_seconds": hotspot_result.auto_refresh_seconds,
             "trades": trades,
             "candidates": candidates,
             "runtime_state": runtime_state,
