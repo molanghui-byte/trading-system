@@ -27,10 +27,15 @@ class BscFourMemeMvpStrategy:
         tags: list[str] = []
         allowed = True
         reason = "signal_cluster_ok"
+        narrative = (candidate.narrative or "").lower()
+        is_volume_spike = "volume_spike" in narrative
         if holding_open:
             allowed = False
             reason = "already_holding"
-        if candidate.liquidity < p.min_liquidity:
+        min_liquidity = p.min_liquidity * (0.8 if is_volume_spike else 1.0)
+        min_holder_count = int(p.minholdercount * (0.7 if is_volume_spike else 1.0))
+        max_top10_rate = p.maxtop10rate + (0.08 if is_volume_spike else 0.0)
+        if candidate.liquidity < min_liquidity:
             allowed = False
             reason = "liquidity_too_low"
             tags.append("low_liquidity")
@@ -46,13 +51,18 @@ class BscFourMemeMvpStrategy:
             allowed = False
             reason = "bot_rate_too_high"
             tags.append("bot_risk")
-        if candidate.holder_count < p.minholdercount:
+        if candidate.holder_count < min_holder_count:
             allowed = False
             reason = "holder_count_too_low"
-        if candidate.top10_rate > p.maxtop10rate:
+        if candidate.top10_rate > max_top10_rate:
             allowed = False
             reason = "top10_concentration_too_high"
         priority = int(candidate.aggregated_signal_score * 100 - candidate.aggregated_risk_score * 50)
+        if is_volume_spike:
+            priority += 18
+            tags.append("volume_spike_fast_track")
+            if allowed:
+                reason = "volume_spike_priority_buy"
         decision = StrategyDecision(
             should_buy=allowed,
             amount_usd=p.buy.amount_usd,

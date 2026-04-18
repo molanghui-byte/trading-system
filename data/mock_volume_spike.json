@@ -1,0 +1,52 @@
+[
+  {
+    "signal_id": "volspike-bsc-001",
+    "source_type": "mock",
+    "source_detail": "volume_spike:bsc",
+    "chain": "bsc",
+    "ca": "0x7a0d8B5c1E3b4fD1A08F11111111111111111111",
+    "symbol": "RUSH",
+    "narrative": "volume_spike,bsc_meme",
+    "content": "volume spike detected on BSC meme pair",
+    "signal_score": 0.91,
+    "risk_score": 0.14,
+    "liquidity": 9800,
+    "market_cap": 78000,
+    "holder_count": 26,
+    "top10_rate": 0.54,
+    "bundler_rate": 0.03,
+    "bot_rate": 0.05,
+    "discovered_at": "2026-04-18T08:00:00+00:00",
+    "raw_item": {
+      "__mock__": true,
+      "spike_multiple": 8.4,
+      "recent_volume_usd": 268000,
+      "baseline_volume_usd": 31800
+    }
+  },
+  {
+    "signal_id": "volspike-sol-001",
+    "source_type": "mock",
+    "source_detail": "volume_spike:sol",
+    "chain": "sol",
+    "ca": "9jQmBzvWJ3mP9g1111111111111111111111111111",
+    "symbol": "FLASH",
+    "narrative": "volume_spike,sol_meme",
+    "content": "volume spike detected on Solana meme pair",
+    "signal_score": 0.89,
+    "risk_score": 0.16,
+    "liquidity": 11200,
+    "market_cap": 93000,
+    "holder_count": 29,
+    "top10_rate": 0.52,
+    "bundler_rate": 0.02,
+    "bot_rate": 0.04,
+    "discovered_at": "2026-04-18T08:01:00+00:00",
+    "raw_item": {
+      "__mock__": true,
+      "spike_multiple": 7.1,
+      "recent_volume_usd": 221000,
+      "baseline_volume_usd": 31100
+    }
+  }
+]

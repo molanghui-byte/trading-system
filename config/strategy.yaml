@@ -77,11 +77,11 @@ listeners:
     browser_headers: {}
     page_url: https://4.meme/
   volume_spike:
-    enabled: false
+    enabled: true
     endpoint: ""
     endpoints: []
-    polling_seconds: 10
-    mock_payload_path: ""
+    polling_seconds: 6
+    mock_payload_path: data/mock_volume_spike.json
     timeout_seconds: 10
     max_items: 50
     browser_headers: {}
