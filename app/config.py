@@ -112,6 +112,20 @@ class CandidatePoolConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     min_signal_score: float = 0.1
     max_candidates_per_cycle: int = 20
+    primary_chain: str = "sol"
+    secondary_chains: list[str] = Field(default_factory=lambda: ["bsc"])
+
+    @model_validator(mode="after")
+    def normalize_chain_priority(self) -> "CandidatePoolConfig":
+        primary = (self.primary_chain or "sol").strip().lower()
+        secondary = [
+            item.strip().lower()
+            for item in self.secondary_chains
+            if item and item.strip()
+        ]
+        self.primary_chain = primary
+        self.secondary_chains = [item for item in dict.fromkeys(secondary) if item != primary]
+        return self
 
 
 class Integration6551Config(BaseModel):

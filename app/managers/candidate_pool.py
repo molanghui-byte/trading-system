@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 
 from app.models import Candidate, CandidateSignal, Signal, StrategyLog
 
@@ -16,10 +16,11 @@ class CandidatePoolManager:
         self.risk_manager = risk_manager
 
     async def ingest_signals(self, session) -> None:
+        chain_priority = self._chain_priority_case(Signal.chain)
         result = await session.execute(
             select(Signal)
             .where(Signal.processing_status == "NEW")
-            .order_by(Signal.discovered_at.asc())
+            .order_by(chain_priority.asc(), Signal.discovered_at.asc())
             .limit(self.config.candidate_pool.max_candidates_per_cycle)
         )
         for signal in result.scalars().all():
@@ -91,10 +92,11 @@ class CandidatePoolManager:
             await self.state_machine.transition_signal(session, signal, "LINKED")
 
     async def process_candidates(self, session) -> list[Candidate]:
+        chain_priority = self._chain_priority_case(Candidate.chain)
         result = await session.execute(
             select(Candidate)
             .where(Candidate.status.in_(["DISCOVERED", "CHECKED"]))
-            .order_by(Candidate.priority.desc(), Candidate.updated_at.asc())
+            .order_by(chain_priority.asc(), Candidate.priority.desc(), Candidate.updated_at.asc())
         )
         accepted: list[Candidate] = []
         for candidate in result.scalars().all():
@@ -115,3 +117,11 @@ class CandidatePoolManager:
                 await self.state_machine.transition_candidate(session, candidate, "REJECTED", decision.buy_reason)
                 await self.notifier.notify("CANDIDATE_REJECTED", f"candidate rejected {candidate.ca}", {"candidate_id": candidate.id, "reason": decision.buy_reason})
         return accepted
+
+    def _chain_priority_case(self, column):
+        ordered_chains = [self.config.candidate_pool.primary_chain, *self.config.candidate_pool.secondary_chains]
+        return case(
+            {chain: index for index, chain in enumerate(ordered_chains)},
+            value=column,
+            else_=len(ordered_chains),
+        )
