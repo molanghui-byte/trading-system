@@ -14,6 +14,7 @@ class Position(Base):
     __table_args__ = (
         Index("ix_positions_status_wallet", "status", "wallet"),
         Index("ix_positions_candidate_status", "candidate_id", "status"),
+        Index("ix_positions_chain_status", "chain", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

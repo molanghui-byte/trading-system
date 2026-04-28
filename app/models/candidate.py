@@ -11,6 +11,7 @@ class Candidate(Base):
     __table_args__ = (
         UniqueConstraint("chain", "ca", name="uq_candidates_chain_ca"),
         Index("ix_candidates_status_priority", "status", "priority"),
+        Index("ix_candidates_chain_status_priority", "chain", "status", "priority"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
