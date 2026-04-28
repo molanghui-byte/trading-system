@@ -19,6 +19,7 @@ class ListenerService:
         self.config = config
         self.notifier = notifier
         self.state_machine = state_machine
+        self.active_chain = (config.system.chain or "").strip().lower()
         self.listeners = [
             FourMemeNewPairsListener(config),
             SolanaNewPairsListener(config),
@@ -29,8 +30,27 @@ class ListenerService:
 
     async def poll(self, session) -> None:
         for listener in self.listeners:
+            if not self._listener_matches_active_chain(listener.name):
+                await self._set_listener_state(
+                    session,
+                    listener.name,
+                    {
+                        "last_polled_at": datetime.now(timezone.utc).isoformat(),
+                        "last_item_count": 0,
+                        "last_source_mode": "skipped_chain",
+                        "last_rpc_url": "",
+                        "last_endpoint": "",
+                        "last_mock_used": False,
+                        "last_error": "",
+                        "rpc_failure_count": 0,
+                        "rpc_cooldown_until": "",
+                        "active_chain": self.active_chain,
+                    },
+                )
+                continue
             try:
                 payloads = await listener.fetch()
+                payloads = [payload for payload in payloads if self._payload_matches_active_chain(payload)]
                 listener_meta = self._extract_listener_meta(payloads)
                 diagnostics = listener.diagnostics() if hasattr(listener, "diagnostics") else {}
                 for payload in payloads:
@@ -89,13 +109,16 @@ class ListenerService:
         exists = await session.execute(select(Signal).where(Signal.signal_id == signal_id))
         if exists.scalar_one_or_none():
             return
+        chain = str(payload.get("chain") or self.active_chain or "bsc").strip().lower()
+        if self.active_chain and chain != self.active_chain:
+            return
         ca = str(payload.get("ca", "")).strip()
         signal = Signal(
             signal_id=signal_id,
             source=source,
             source_type=payload.get("source_type", "listener"),
             source_detail=payload.get("source_detail", ""),
-            chain=payload.get("chain", "bsc"),
+            chain=chain,
             ca=ca,
             symbol=payload.get("symbol", ""),
             narrative=payload.get("narrative", ""),
@@ -152,3 +175,20 @@ class ListenerService:
             "endpoint": detail if source_type == "api" else raw_item.get("__endpoint__", ""),
             "mock_used": bool(raw_item.get("__mock__")),
         }
+
+    def _listener_matches_active_chain(self, listener_name: str) -> bool:
+        if not self.active_chain:
+            return True
+        listener_chain = {
+            "fourmemenewpairs": "bsc",
+            "fourmeme_migration": "bsc",
+            "twitter6551": "bsc",
+            "solnewpairs": "sol",
+        }.get(listener_name)
+        return listener_chain is None or listener_chain == self.active_chain
+
+    def _payload_matches_active_chain(self, payload: dict[str, Any]) -> bool:
+        if not self.active_chain:
+            return True
+        payload_chain = str(payload.get("chain") or self.active_chain).strip().lower()
+        return payload_chain == self.active_chain
