@@ -14,14 +14,17 @@ class CandidatePoolManager:
         self.state_machine = state_machine
         self.strategy = strategy
         self.risk_manager = risk_manager
+        self.active_chain = (config.system.chain or "").strip().lower()
 
     async def ingest_signals(self, session) -> None:
         chain_priority = self._chain_priority_case(Signal.chain)
+        query = select(Signal).where(Signal.processing_status == "NEW")
+        if self.active_chain:
+            query = query.where(Signal.chain == self.active_chain)
         result = await session.execute(
-            select(Signal)
-            .where(Signal.processing_status == "NEW")
-            .order_by(chain_priority.asc(), Signal.discovered_at.asc())
-            .limit(self.config.candidate_pool.max_candidates_per_cycle)
+            query.order_by(chain_priority.asc(), Signal.discovered_at.asc()).limit(
+                self.config.candidate_pool.max_candidates_per_cycle
+            )
         )
         for signal in result.scalars().all():
             if signal.signal_score < self.config.candidate_pool.min_signal_score:
@@ -93,10 +96,11 @@ class CandidatePoolManager:
 
     async def process_candidates(self, session) -> list[Candidate]:
         chain_priority = self._chain_priority_case(Candidate.chain)
+        query = select(Candidate).where(Candidate.status.in_(["DISCOVERED", "CHECKED"]))
+        if self.active_chain:
+            query = query.where(Candidate.chain == self.active_chain)
         result = await session.execute(
-            select(Candidate)
-            .where(Candidate.status.in_(["DISCOVERED", "CHECKED"]))
-            .order_by(chain_priority.asc(), Candidate.priority.desc(), Candidate.updated_at.asc())
+            query.order_by(chain_priority.asc(), Candidate.priority.desc(), Candidate.updated_at.asc())
         )
         accepted: list[Candidate] = []
         for candidate in result.scalars().all():
