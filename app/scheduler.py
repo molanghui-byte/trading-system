@@ -21,6 +21,8 @@ class SchedulerService:
         self.position_manager = position_manager
         self.recovery_service = recovery_service
         self.state_machine = state_machine
+        self.active_chain = (config.system.chain or "").strip().lower()
+        self.active_position_statuses = ["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"]
         self.tasks: list[asyncio.Task] = []
 
     async def start(self) -> None:
@@ -59,12 +61,16 @@ class SchedulerService:
 
     async def _process_orders(self) -> None:
         async with get_session() as session:
-            result = await session.execute(select(Candidate).where(Candidate.status == "BUY_PENDING"))
+            query = select(Candidate).where(Candidate.status == "BUY_PENDING")
+            if self.active_chain:
+                query = query.where(Candidate.chain == self.active_chain)
+            result = await session.execute(query)
             for candidate in result.scalars().all():
                 position_exists = await session.execute(
                     select(Position).where(
                         Position.candidate_id == candidate.id,
-                        Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"]),
+                        Position.chain == candidate.chain,
+                        Position.status.in_(self.active_position_statuses),
                     )
                 )
                 if position_exists.scalar_one_or_none():
@@ -75,7 +81,10 @@ class SchedulerService:
                     )
                     continue
                 signal_result = await session.execute(
-                    select(Signal).where(Signal.ca == candidate.ca).order_by(Signal.discovered_at.desc())
+                    select(Signal)
+                    .where(Signal.chain == candidate.chain, Signal.ca == candidate.ca)
+                    .order_by(Signal.discovered_at.desc())
+                    .limit(1)
                 )
                 signal = signal_result.scalars().first()
                 try:
@@ -104,40 +113,60 @@ class SchedulerService:
 
     async def _status_report(self) -> None:
         async with get_session() as session:
-            new_signals = len((await session.execute(select(Signal).where(Signal.processing_status == "NEW"))).scalars().all())
-            active_candidates = len(
-                (
-                    await session.execute(
-                        select(Candidate).where(Candidate.status.in_(["BUY_PENDING", "BOUGHT", "SELL_PENDING"]))
-                    )
-                ).scalars().all()
-            )
+            new_signals = await session.scalar(
+                self._with_active_chain(
+                    select(func.count()).select_from(Signal).where(Signal.processing_status == "NEW"),
+                    Signal,
+                )
+            ) or 0
+            active_candidates = await session.scalar(
+                self._with_active_chain(
+                    select(func.count()).select_from(Candidate).where(
+                        Candidate.status.in_(["BUY_PENDING", "BOUGHT", "SELL_PENDING"])
+                    ),
+                    Candidate,
+                )
+            ) or 0
             active_positions = (
                 await session.scalar(
-                    select(func.count()).select_from(Position).where(
-                        Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
+                    self._with_active_chain(
+                        select(func.count()).select_from(Position).where(
+                            Position.status.in_(self.active_position_statuses)
+                        ),
+                        Position,
                     )
                 )
                 or 0
             )
             realized_pnl = (
                 await session.scalar(
-                    select(func.coalesce(func.sum(Trade.pnl_usd), 0.0)).where(Trade.trade_status.in_(["CLOSED", "REVIEWED"]))
+                    self._with_active_chain(
+                        select(func.coalesce(func.sum(Trade.pnl_usd), 0.0)).where(
+                            Trade.trade_status.in_(["CLOSED", "REVIEWED"])
+                        ),
+                        Trade,
+                    )
                 )
                 or 0.0
             )
             unrealized_pnl = (
                 await session.scalar(
-                    select(func.coalesce(func.sum(Position.unrealized_pnl_usd), 0.0)).where(
-                        Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
+                    self._with_active_chain(
+                        select(func.coalesce(func.sum(Position.unrealized_pnl_usd), 0.0)).where(
+                            Position.status.in_(self.active_position_statuses)
+                        ),
+                        Position,
                     )
                 )
                 or 0.0
             )
             open_value = (
                 await session.scalar(
-                    select(func.coalesce(func.sum(Position.current_value), 0.0)).where(
-                        Position.status.in_(["OPEN", "TP_PENDING", "SL_PENDING", "EXIT_PENDING"])
+                    self._with_active_chain(
+                        select(func.coalesce(func.sum(Position.current_value), 0.0)).where(
+                            Position.status.in_(self.active_position_statuses)
+                        ),
+                        Position,
                     )
                 )
                 or 0.0
@@ -149,25 +178,30 @@ class SchedulerService:
             total_equity = starting_balance + realized_pnl + unrealized_pnl
             available_cash = total_equity - open_value
 
-            await self.state_machine.set_runtime_state(
-                session,
-                "wallet_summary",
-                {
-                    "mode": self.config.system.mode,
-                    "chain": self.config.system.chain,
-                    "starting_balance": starting_balance,
-                    "realized_pnl": realized_pnl,
-                    "unrealized_pnl": unrealized_pnl,
-                    "open_position_value": open_value,
-                    "total_equity": total_equity,
-                    "available_cash": available_cash,
-                    "active_positions": active_positions,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                },
-            )
+            wallet_summary = {
+                "mode": self.config.system.mode,
+                "chain": self.active_chain or self.config.system.chain,
+                "starting_balance": starting_balance,
+                "realized_pnl": realized_pnl,
+                "unrealized_pnl": unrealized_pnl,
+                "open_position_value": open_value,
+                "total_equity": total_equity,
+                "available_cash": available_cash,
+                "active_positions": active_positions,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+            await self.state_machine.set_runtime_state(session, "wallet_summary", wallet_summary)
+            if self.active_chain:
+                await self.state_machine.set_runtime_state(
+                    session,
+                    f"wallet_summary:{self.active_chain}",
+                    wallet_summary,
+                )
             await self.notifier.notify(
                 "SYSTEM_STATUS",
                 (
+                    f"chain={self.active_chain or 'all'} "
                     f"new_signals={new_signals} "
                     f"active_candidates={active_candidates} "
                     f"active_positions={active_positions} "
@@ -195,3 +229,8 @@ class SchedulerService:
                 },
             )
             await self.notifier.notify("DAILY_REPORT", f"daily pnl={report.total_pnl_usd}", {"date": report.report_date})
+
+    def _with_active_chain(self, query, model):
+        if self.active_chain:
+            return query.where(model.chain == self.active_chain)
+        return query
