@@ -15,9 +15,13 @@ class PositionManager:
         self.state_machine = state_machine
         self.trader = trader
         self.params = config.strategies.bscfourmememvp
+        self.active_chain = (config.system.chain or "").strip().lower()
 
     async def manage(self, session) -> None:
-        result = await session.execute(select(Position).where(Position.status == "OPEN"))
+        query = select(Position).where(Position.status == "OPEN")
+        if self.active_chain:
+            query = query.where(Position.chain == self.active_chain)
+        result = await session.execute(query)
         now = datetime.now(timezone.utc)
         for position in result.scalars().all():
             position.entry_time = self._ensure_utc(position.entry_time)
@@ -46,7 +50,10 @@ class PositionManager:
 
     async def _refresh_position(self, session, position: Position, candidate: Candidate, now: datetime) -> None:
         latest_signal_result = await session.execute(
-            select(Signal).where(Signal.ca == position.ca).order_by(Signal.discovered_at.desc()).limit(1)
+            select(Signal)
+            .where(Signal.chain == position.chain, Signal.ca == position.ca)
+            .order_by(Signal.discovered_at.desc())
+            .limit(1)
         )
         latest_signal = latest_signal_result.scalar_one_or_none()
         latest_signal_score = latest_signal.signal_score if latest_signal else candidate.aggregated_signal_score
@@ -80,7 +87,10 @@ class PositionManager:
         if now >= position.entry_time + timedelta(minutes=self.params.maxholdminutes):
             return "max_hold_timeout"
         latest_signal_result = await session.execute(
-            select(Signal).where(Signal.ca == position.ca).order_by(Signal.discovered_at.desc()).limit(1)
+            select(Signal)
+            .where(Signal.chain == position.chain, Signal.ca == position.ca)
+            .order_by(Signal.discovered_at.desc())
+            .limit(1)
         )
         latest_signal = latest_signal_result.scalar_one_or_none()
         latest_liquidity = latest_signal.liquidity if latest_signal else candidate.liquidity
