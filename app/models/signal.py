@@ -14,6 +14,7 @@ class Signal(Base):
         UniqueConstraint("signal_id", name="uq_signals_signal_id"),
         Index("ix_signals_ca_status", "ca", "processing_status"),
         Index("ix_signals_discovered_at", "discovered_at"),
+        Index("ix_signals_chain_status_discovered", "chain", "processing_status", "discovered_at"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
