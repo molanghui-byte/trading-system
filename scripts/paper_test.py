@@ -11,7 +11,7 @@ DB_PATH = ROOT / "data" / "trading.db"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.main import bootstrap
+from app.main_chain import bootstrap
 
 
 TABLES = [
