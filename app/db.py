@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_config
@@ -9,8 +10,22 @@ from app.models import Base
 
 
 config = get_config()
-engine = create_async_engine(config.database.url, future=True, echo=False)
+engine_kwargs = {"future": True, "echo": False}
+if config.database.url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"timeout": 30}
+engine = create_async_engine(config.database.url, **engine_kwargs)
 session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+
+if config.database.url.startswith("sqlite"):
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
 
 
 @asynccontextmanager
