@@ -18,6 +18,11 @@ def _spawn(command: list[str], env: dict[str, str]) -> subprocess.Popen:
 
 def main() -> int:
     port = os.getenv("PORT", "8050")
+    chains = [
+        chain.strip().lower()
+        for chain in os.getenv("APP_CHAINS", "bsc,sol,eth").split(",")
+        if chain.strip()
+    ]
     base_env = os.environ.copy()
     processes: list[subprocess.Popen] = []
     try:
@@ -41,7 +46,7 @@ def main() -> int:
             )
         )
 
-        for chain in ("bsc", "sol"):
+        for chain in chains:
             worker_env = base_env.copy()
             worker_env["APP_CHAIN"] = chain
             worker_env["APP_NAME"] = f"trading-system-{chain}"
