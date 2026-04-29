@@ -1,14 +1,29 @@
-version: "3.9"
-
 services:
   trading-dashboard:
     build: .
     container_name: trading-dashboard
     restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_MODE: ${APP_MODE:-paper}
+      LIVE_ENABLED: ${LIVE_ENABLED:-false}
+      APP_CHAINS: ${APP_CHAINS:-bsc,sol,eth}
+      PORT: ${PORT:-8050}
     ports:
-      - "8050:8050"
+      - "${PORT:-8050}:8050"
     volumes:
       - ./data:/app/data
-      - ./config:/app/config
-    environment:
-      - APP_MODE=paper
+      - ./config:/app/config:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"PORT\", \"8050\")}/healthz', timeout=3).read()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
