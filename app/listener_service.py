@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from app.listeners.ethnewpairs import EthereumNewPairsListener
 from app.listeners.fourmeme_migration import FourMemeMigrationListener
 from app.listeners.fourmemenewpairs import FourMemeNewPairsListener
 from app.listeners.solnewpairs import SolanaNewPairsListener
@@ -23,6 +24,7 @@ class ListenerService:
         self.listeners = [
             FourMemeNewPairsListener(config),
             SolanaNewPairsListener(config),
+            EthereumNewPairsListener(config),
             Twitter6551Listener(config),
             VolumeSpikeListener(config),
             FourMemeMigrationListener(config),
@@ -148,7 +150,7 @@ class ListenerService:
         )
 
     async def _set_listener_state(self, session, listener_name: str, payload: dict) -> None:
-        key = f"listener:{listener_name}"
+        key = f"listener:{self.active_chain or 'all'}:{listener_name}"
         result = await session.execute(select(RuntimeState).where(RuntimeState.state_key == key))
         state = result.scalar_one_or_none()
         if not state:
@@ -184,6 +186,7 @@ class ListenerService:
             "fourmeme_migration": "bsc",
             "twitter6551": "bsc",
             "solnewpairs": "sol",
+            "ethnewpairs": "eth",
         }.get(listener_name)
         return listener_chain is None or listener_chain == self.active_chain
 

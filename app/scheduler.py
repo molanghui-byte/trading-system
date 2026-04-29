@@ -50,7 +50,7 @@ class SchedulerService:
             await self.listener_service.poll(session)
             await self.state_machine.set_runtime_state(
                 session,
-                "signal_scan_cursor",
+                f"signal_scan_cursor:{self.active_chain}" if self.active_chain else "signal_scan_cursor",
                 {"last_scan": datetime.now(timezone.utc).isoformat()},
             )
 
