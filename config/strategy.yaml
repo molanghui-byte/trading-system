@@ -5,6 +5,7 @@ system:
   chains:
     - bsc
     - sol
+    - eth
   environment: dev
   live_enabled: false
   log_level: INFO
@@ -55,6 +56,7 @@ candidate_pool:
   primary_chain: sol
   secondary_chains:
     - bsc
+    - eth
 
 listeners:
   fourmemenewpairs:
@@ -119,6 +121,26 @@ listeners:
     max_items: 50
     browser_headers: {}
     page_url: ""
+  ethnewpairs:
+    enabled: true
+    endpoint: ""
+    endpoints: []
+    rpc_url: https://ethereum-rpc.publicnode.com
+    rpc_urls:
+      - https://rpc.flashbots.net
+      - https://eth.llamarpc.com
+    contract_address: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
+    event_topic: "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
+    start_block: 0
+    block_window: 120
+    polling_seconds: 6
+    mock_payload_path: ""
+    timeout_seconds: 12
+    max_items: 50
+    rpc_error_cooldown_seconds: 30
+    use_mock_on_rpc_failure: false
+    browser_headers: {}
+    page_url: https://app.uniswap.org/
 
 strategies:
   active: bscfourmememvp
