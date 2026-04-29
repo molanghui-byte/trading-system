@@ -41,6 +41,7 @@ Run a specific chain worker:
 ```bash
 APP_CHAIN=bsc python -m app.main_chain
 APP_CHAIN=sol python -m app.main_chain
+APP_CHAIN=eth python -m app.main_chain
 ```
 
 ## Dashboard
@@ -79,6 +80,7 @@ Deployment artifacts:
 - `data/mock_signals.json` and `data/mock_signals_sol.json` are included so the first boot can walk through both BSC and SOL paper pipelines
 - `fourmemenewpairs` now supports real HTTP polling via `listeners.fourmemenewpairs.endpoint` or `endpoints`; if the live source returns nothing, it falls back to the mock file
 - `fourmemenewpairs` also supports direct BSC RPC event polling via `rpc_url + CA + event_topic`, which is a more stable production path than scraping a frontend API
+- `ethnewpairs` supports direct Ethereum RPC polling for Uniswap V2 `PairCreated` logs, plus optional HTTP endpoint ingestion
 - `twitter6551` can now be enabled as a read-only signal source backed by the 6551 Twitter/X API, using `integration_6551.token_env` for the bearer token
 - Listener polling metadata is persisted in `runtime_state` under keys like `listener:fourmemenewpairs`
 - `app.main_chain` writes chain-specific lock files like `data/app_main_bsc.lock` and `data/app_main_sol.lock`
