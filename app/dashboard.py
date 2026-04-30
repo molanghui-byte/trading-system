@@ -257,6 +257,11 @@ def _pretty_json(raw: str) -> str:
 def _parse_state_json(raw: str) -> dict[str, Any]:
     if not raw:
         return {}
+    try:
+        value = json.loads(raw)
+        return value if isinstance(value, dict) else {}
+    except Exception:
+        return {}
 
 
 def _signal_decision(raw: str) -> dict[str, Any]:
@@ -273,11 +278,6 @@ def _signal_decision(raw: str) -> dict[str, Any]:
         "reasons": payload.get("__decision_reasons__", []),
         "blockers": payload.get("__decision_blockers__", []),
     }
-    try:
-        value = json.loads(raw)
-        return value if isinstance(value, dict) else {}
-    except Exception:
-        return {}
 
 
 def _build_query(**kwargs: int) -> str:
