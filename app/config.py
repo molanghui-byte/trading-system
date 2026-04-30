@@ -159,6 +159,15 @@ class ListenerEntry(BaseModel):
     use_mock_on_rpc_failure: bool = True
     browser_headers: dict[str, str] = Field(default_factory=dict)
     page_url: str = ""
+    interval: str = "1h"
+    order_by: str = "volume"
+    min_volume: float = 0.0
+    min_liquidity: float = 10_000.0
+    min_market_cap: float = 0.0
+    max_top10_rate: float = 0.5
+    max_bundler_rate: float = 0.3
+    max_bot_rate: float = 0.8
+    max_rug_ratio: float = 0.3
 
 
 class StrategyParams(BaseModel):

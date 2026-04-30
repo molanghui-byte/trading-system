@@ -208,6 +208,7 @@ async def index(
             "zh_reason": _zh_reason,
             "zh_source": _zh_source,
             "zh_runtime_key": _zh_runtime_key,
+            "signal_decision": _signal_decision,
         },
     )
 
@@ -256,6 +257,22 @@ def _pretty_json(raw: str) -> str:
 def _parse_state_json(raw: str) -> dict[str, Any]:
     if not raw:
         return {}
+
+
+def _signal_decision(raw: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(raw or "{}")
+    except Exception:
+        payload = {}
+    label = str(payload.get("__decision_label__") or "")
+    if not label:
+        return {}
+    return {
+        "label": label,
+        "score": payload.get("__decision_score__", 0),
+        "reasons": payload.get("__decision_reasons__", []),
+        "blockers": payload.get("__decision_blockers__", []),
+    }
     try:
         value = json.loads(raw)
         return value if isinstance(value, dict) else {}
@@ -354,6 +371,7 @@ def _zh_source(value: str) -> str:
         "twitter6551": "Twitter/6551",
         "volume_spike": "放量异动",
         "solnewpairs": "Solana 新池",
+        "gmgn_trending": "GMGN 热榜",
     }
     return mapping.get(value, value or "—")
 

@@ -91,6 +91,20 @@ listeners:
     max_items: 50
     browser_headers: {}
     page_url: ""
+  gmgn_trending:
+    enabled: true
+    interval: 1h
+    order_by: volume
+    polling_seconds: 6
+    timeout_seconds: 20
+    max_items: 50
+    min_volume: 250000
+    min_liquidity: 10000
+    min_market_cap: 0
+    max_top10_rate: 0.5
+    max_bundler_rate: 0.3
+    max_bot_rate: 0.8
+    max_rug_ratio: 0.3
   fourmeme_migration:
     enabled: false
     endpoint: ""

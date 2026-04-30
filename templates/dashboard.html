@@ -298,13 +298,28 @@
         <header>最新信号</header>
         <div class="panel-body">
           <table>
-            <tr><th style="width: 56px;">ID</th><th style="width: 130px;">来源</th><th>信号 ID</th><th>CA</th><th style="width: 72px;">状态</th></tr>
+            <tr><th style="width: 56px;">ID</th><th style="width: 130px;">来源</th><th>信号 ID</th><th>CA</th><th style="width: 120px;">判断</th><th style="width: 72px;">状态</th></tr>
             {% for row in signals %}
+            {% set decision = signal_decision(row.raw_payload) %}
             <tr>
               <td>{{ row.id }}</td>
               <td>{{ zh_source(row.source) }}</td>
               <td>{{ row.signal_id }}</td>
               <td>{{ row.ca }}</td>
+              <td>
+                {% if decision %}
+                <div class="{{ 'good' if decision.label == 'PASS' else ('warn' if decision.label == 'WATCH' else 'bad') }}">
+                  {{ decision.label }} / {{ "%.0f"|format(decision.score) }}
+                </div>
+                {% if decision.blockers %}
+                <div class="muted">{{ decision.blockers|join(', ') }}</div>
+                {% else %}
+                <div class="muted">{{ decision.reasons|join(', ') }}</div>
+                {% endif %}
+                {% else %}
+                <span class="muted">—</span>
+                {% endif %}
+              </td>
               <td>{{ zh_status(row.processing_status) }}</td>
             </tr>
             {% endfor %}

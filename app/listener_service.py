@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,6 +10,7 @@ from sqlalchemy import select
 from app.listeners.ethnewpairs import EthereumNewPairsListener
 from app.listeners.fourmeme_migration import FourMemeMigrationListener
 from app.listeners.fourmemenewpairs import FourMemeNewPairsListener
+from app.listeners.gmgn_trending import GMGNTrendingListener
 from app.listeners.solnewpairs import SolanaNewPairsListener
 from app.listeners.twitter6551 import Twitter6551Listener
 from app.listeners.volume_spike import VolumeSpikeListener
@@ -21,12 +23,14 @@ class ListenerService:
         self.notifier = notifier
         self.state_machine = state_machine
         self.active_chain = (config.system.chain or "").strip().lower()
+        self._last_polled_at: dict[str, float] = {}
         self.listeners = [
             FourMemeNewPairsListener(config),
             SolanaNewPairsListener(config),
             EthereumNewPairsListener(config),
             Twitter6551Listener(config),
             VolumeSpikeListener(config),
+            GMGNTrendingListener(config),
             FourMemeMigrationListener(config),
         ]
 
@@ -50,6 +54,9 @@ class ListenerService:
                     },
                 )
                 continue
+            if not self._listener_due(listener.name):
+                continue
+            self._last_polled_at[listener.name] = time.monotonic()
             try:
                 payloads = await listener.fetch()
                 payloads = [payload for payload in payloads if self._payload_matches_active_chain(payload)]
@@ -189,6 +196,16 @@ class ListenerService:
             "ethnewpairs": "eth",
         }.get(listener_name)
         return listener_chain is None or listener_chain == self.active_chain
+
+    def _listener_due(self, listener_name: str) -> bool:
+        cfg = self.config.listeners.get(listener_name)
+        polling_seconds = float(getattr(cfg, "polling_seconds", 0) or 0)
+        if polling_seconds <= 0:
+            return True
+        last_polled_at = self._last_polled_at.get(listener_name)
+        if last_polled_at is None:
+            return True
+        return (time.monotonic() - last_polled_at) >= polling_seconds
 
     def _payload_matches_active_chain(self, payload: dict[str, Any]) -> bool:
         if not self.active_chain:
